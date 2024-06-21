@@ -112,6 +112,8 @@ def split_audio(sound: Sound, segment_length: float, overlap: float, remainder: 
         raise TypeError("Expected 'segment_length' and 'overlap' to be floats or ints")
     if segment_length <= 0 or overlap < 0:
         raise ValueError("segment_length must be positive and overlap cannot be negative")
+    if segment_length <= overlap:
+        raise ValueError("segment_length must be greater than overlap")
 
     rate = sound.get_rate()
     data = sound.get_data()
