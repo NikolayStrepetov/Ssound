@@ -4,13 +4,19 @@ from scipy import signal
 from .sound import Sound
 
 
-def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None) -> None:
+def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None, legend: bool = True) -> None:
     """
     Plot the waveform of an audio file.
 
     Parameters:
     sound : Sound
         Sound object containing the audio data to plot.
+    save_plot : bool
+        Whether to save the plot as an image file.
+    output_file : str, optional
+        Path to save the image file. If None, saves with the same name as the audio file with .png extension.
+    legend : bool
+        Whether to display a legend.
 
     Returns:
     None
@@ -22,6 +28,7 @@ def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None
         raise TypeError("'save_plot' must be a bool")
     if not isinstance(output_file, str) and output_file is not None:
         raise TypeError("'output_file' must be a string or None")
+    
 
     data = sound.get_data()
     rate = sound.get_rate()
@@ -29,9 +36,15 @@ def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None
 
     plt.figure(figsize=(10, 4))
     plt.plot(time, data)
-    plt.title('Waveform')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Amplitude')
+    if legend:
+        plt.title('Waveform')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+
+    if not legend:
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        plt.margins(0)
+
     if save_plot:
         if output_file is None:
             output_file = "waveform.png"
@@ -41,7 +54,7 @@ def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None
         plt.show()
 
 
-def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, output_file: str = None) -> None:
+def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, output_file: str = None, legend: bool = True) -> None:
     """
     Plot a spectrogram of an audio file.
 
@@ -54,6 +67,8 @@ def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, ou
         Whether to save the plot as an image file.
     output_file : str, optional
         Path to save the image file. If None, saves with the same name as the audio file with .png extension.
+    legend : bool
+        Whether to display a legend.
 
     Returns:
     None
@@ -82,11 +97,18 @@ def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, ou
 
     plt.figure(figsize=(10, 5))
     plt.pcolormesh(times_arr, frequencies_arr, 10 * np.log10(sxx))
-    plt.ylabel('Frequency [Hz]')
-    plt.xlabel('Time [sec]')
-    plt.title(f'Spectrogram, channel {channel}')
-    plt.colorbar(label='Amplitude [dB]')
-    plt.tight_layout()
+
+    if legend:
+        plt.ylabel('Frequency [Hz]')
+        plt.xlabel('Time [sec]')
+        plt.title(f'Spectrogram, channel {channel}')
+        plt.colorbar(label='Amplitude [dB]')
+        plt.tight_layout()
+
+    if not legend:
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        plt.margins(0)
+
     if save_plot:
         if output_file is None:
             output_file = "spectrogram.png"
