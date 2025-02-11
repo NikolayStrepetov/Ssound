@@ -172,34 +172,42 @@ def calculate_mfcc(sound, n_mfcc=13, n_fft=512, hop_length=256, n_mels=23, fmin=
     rate = sound.get_rate()
 
     if fmax is None:
-        fmax = rate // 2  # Nyquist frequency
+        fmax = rate // 2
 
-    # Step 1: Compute the short-time Fourier transform (STFT)
-    frames = np.array([data[i:i + n_fft] * hamming(n_fft) for i in range(0, len(data) - n_fft, hop_length)])
+    num_frames = 1 + (len(data) - n_fft) // hop_length
+    frames = np.zeros((num_frames, n_fft))
 
-    # Compute the magnitude spectrum
+    for i in range(num_frames):
+        start = i * hop_length
+        frames[i] = data[start:start + n_fft] * hamming(n_fft)
+
     spectrum = np.abs(np.fft.rfft(frames, n=n_fft))
 
-    # Step 2: Apply the Mel filter bank
     mel_points = np.linspace(fmin, fmax, n_mels + 2)
     mel_filter_bank = np.zeros((n_mels, spectrum.shape[1]))
 
-    # Mel scale conversion
+    def hz_to_mel(hz):
+        return 2595 * np.log10(1 + hz / 700)
+
+    def mel_to_hz(mel):
+        return 700 * (10 ** (mel / 2595) - 1)
+
+    mel_frequencies = mel_to_hz(mel_points)
+
     for i in range(1, n_mels + 1):
-        left = mel_points[i - 1]
-        center = mel_points[i]
-        right = mel_points[i + 1]
+        left, center, right = mel_frequencies[i - 1], mel_frequencies[i], mel_frequencies[i + 1]
+        left_bin, center_bin, right_bin = np.floor(left / (rate / n_fft)), np.floor(center / (rate / n_fft)), np.floor(
+            right / (rate / n_fft))
 
-        mel_filter_bank[i - 1] = np.maximum(0, (np.linspace(0, 1, int(center - left)) * (center - left))[
-                                   np.newaxis] + np.maximum(0, (np.linspace(1, 0, int(right - center)) * (right - center))))
+        for j in range(int(left_bin), int(center_bin)):
+            mel_filter_bank[i - 1, j] = (j - left_bin) / (center_bin - left_bin)
+        for j in range(int(center_bin), int(right_bin)):
+            mel_filter_bank[i - 1, j] = (right_bin - j) / (right_bin - center_bin)
 
-    # Apply filter bank to the magnitude spectrum
-    mel_spectrum = np.dot(mel_filter_bank, spectrum)
+    mel_spectrum = np.dot(mel_filter_bank, spectrum.T)
 
-    # Step 3: Apply logarithm
     log_mel_spectrum = np.log(mel_spectrum + 1e-6)
 
-    # Step 4: Compute the Discrete Cosine Transform (DCT)
-    mfccs = dct(log_mel_spectrum, type=2, axis=-1, norm='ortho')[:, :n_mfcc]
+    mfccs = dct(log_mel_spectrum, type=2, axis=0, norm='ortho')[:n_mfcc]
 
-    return mfccs
+    return mfccs.T
