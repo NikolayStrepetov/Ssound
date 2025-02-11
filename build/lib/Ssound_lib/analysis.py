@@ -184,25 +184,30 @@ def calculate_mfcc(sound, n_mfcc=13, n_fft=512, hop_length=256, n_mels=23, fmin=
     spectrum = np.abs(np.fft.rfft(frames, n=n_fft))
 
     mel_points = np.linspace(fmin, fmax, n_mels + 2)
-    mel_filter_bank = np.zeros((n_mels, spectrum.shape[1]))
 
     def hz_to_mel(hz):
         return 2595 * np.log10(1 + hz / 700)
 
     def mel_to_hz(mel):
-        return 700 * (10 ** (mel / 2595) - 1)
+        return 700 * (10**(mel / 2595) - 1)
 
-    mel_frequencies = mel_to_hz(mel_points)
+    mel_frequencies = mel_to_hz(hz_to_mel(mel_points))
+
+    bin_frequencies = np.floor((mel_frequencies / rate) * n_fft).astype(int)
+    bin_frequencies = np.clip(bin_frequencies, 0, n_fft // 2)
+
+    mel_filter_bank = np.zeros((n_mels, n_fft // 2 + 1))
 
     for i in range(1, n_mels + 1):
-        left, center, right = mel_frequencies[i - 1], mel_frequencies[i], mel_frequencies[i + 1]
-        left_bin, center_bin, right_bin = np.floor(left / (rate / n_fft)), np.floor(center / (rate / n_fft)), np.floor(
-            right / (rate / n_fft))
+        left_bin = bin_frequencies[i - 1]
+        center_bin = bin_frequencies[i]
+        right_bin = bin_frequencies[i + 1]
 
-        for j in range(int(left_bin), int(center_bin)):
+        for j in range(left_bin, center_bin):
             mel_filter_bank[i - 1, j] = (j - left_bin) / (center_bin - left_bin)
-        for j in range(int(center_bin), int(right_bin)):
-            mel_filter_bank[i - 1, j] = (right_bin - j) / (right_bin - center_bin)
+        for j in range(center_bin, right_bin):
+            if j < n_fft // 2 + 1:
+                mel_filter_bank[i - 1, j] = (right_bin - j) / (right_bin - center_bin)
 
     mel_spectrum = np.dot(mel_filter_bank, spectrum.T)
 
