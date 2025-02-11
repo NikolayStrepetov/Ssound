@@ -1,0 +1,14 @@
+README.md
+setup.py
+Ssound.egg-info/PKG-INFO
+Ssound.egg-info/SOURCES.txt
+Ssound.egg-info/dependency_links.txt
+Ssound.egg-info/requires.txt
+Ssound.egg-info/top_level.txt
+Ssound_lib/__init__.py
+Ssound_lib/analysis.py
+Ssound_lib/io.py
+Ssound_lib/processing.py
+Ssound_lib/sound.py
+Ssound_lib/utils.py
+Ssound_lib/visualization.py
