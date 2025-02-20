@@ -1,8 +1,8 @@
 import numpy as np
 from .sound import Sound
-from .utils import audio_length_alignment
-from scipy.fftpack import dct
-from scipy.signal.windows import hamming
+from .utils import audio_length_alignment, hz_to_mel, mel_to_hz
+from scipy.signal import stft
+import scipy.fftpack as fft
 
 
 def calculate_snr(clean_sound: Sound, noisy_sound: Sound) -> float:
@@ -144,75 +144,79 @@ def _calculate_channel_si_sdr(clean_data: np.array, estimated_data: np.array) ->
     return si_sdr
 
 
-def calculate_mfcc(sound, n_mfcc=13, n_fft=512, hop_length=256, n_mels=23, fmin=0, fmax=None):
+def get_mel_filters(sample_rate, n_fft, n_mels=40):
+    """Создание Mel-фильтров."""
     """
-    Calculate the MFCC (Mel-frequency cepstral coefficients) of an audio file.
+        Creating of Mel-filters.
 
-    Parameters:
-    sound : Sound
-        Sound object containing the audio data.
-    n_mfcc : int
-        Number of MFCCs to return (default is 13).
-    n_fft : int
-        Number of FFT points (default is 512).
-    hop_length : int
-        Number of samples between successive frames (default is 256).
-    n_mels : int
-        Number of Mel bands to use (default is 23).
-    fmin : int
-        Minimum frequency (default is 0).
-    fmax : int
-        Maximum frequency (default is None, which will be half of the sampling rate).
+        Parameters:
+        sample_rate : int
+            Sample rate of an audio file.
+        n_fft : float
+            Length of the FFT window.
+        n_mels : float
+            Number of Mel bands.
 
-    Returns:
-    mfccs : np.array
-        Array of MFCCs for the audio data.
+        Returns:
+        filters : np.array
+            Mel-filters.
     """
-    data = sound.get_data()
-    rate = sound.get_rate()
+    low_freq_mel = hz_to_mel(0)
+    high_freq_mel = hz_to_mel(sample_rate / 2)
 
-    if fmax is None:
-        fmax = rate // 2
+    mel_points = np.linspace(low_freq_mel, high_freq_mel, n_mels + 2)
+    hz_points = mel_to_hz(mel_points)
 
-    num_frames = 1 + (len(data) - n_fft) // hop_length
-    frames = np.zeros((num_frames, n_fft))
+    bin = np.floor((n_fft + 1) * hz_points / sample_rate)
 
-    for i in range(num_frames):
-        start = i * hop_length
-        frames[i] = data[start:start + n_fft] * hamming(n_fft)
-
-    spectrum = np.abs(np.fft.rfft(frames, n=n_fft))
-
-    mel_points = np.linspace(fmin, fmax, n_mels + 2)
-
-    def hz_to_mel(hz):
-        return 2595 * np.log10(1 + hz / 700)
-
-    def mel_to_hz(mel):
-        return 700 * (10**(mel / 2595) - 1)
-
-    mel_frequencies = mel_to_hz(hz_to_mel(mel_points))
-
-    bin_frequencies = np.floor((mel_frequencies / rate) * n_fft).astype(int)
-    bin_frequencies = np.clip(bin_frequencies, 0, n_fft // 2)
-
-    mel_filter_bank = np.zeros((n_mels, n_fft // 2 + 1))
+    filters = np.zeros((n_mels, int(np.floor(n_fft / 2 + 1))))
 
     for i in range(1, n_mels + 1):
-        left_bin = bin_frequencies[i - 1]
-        center_bin = bin_frequencies[i]
-        right_bin = bin_frequencies[i + 1]
+        left = int(bin[i - 1])
+        center = int(bin[i])
+        right = int(bin[i + 1])
 
-        for j in range(left_bin, center_bin):
-            mel_filter_bank[i - 1, j] = (j - left_bin) / (center_bin - left_bin)
-        for j in range(center_bin, right_bin):
-            if j < n_fft // 2 + 1:
-                mel_filter_bank[i - 1, j] = (right_bin - j) / (right_bin - center_bin)
+        for j in range(left, center):
+            filters[i - 1, j] = (j - bin[i - 1]) / (bin[i] - bin[i - 1])
+        for j in range(center, right):
+            filters[i - 1, j] = (bin[i + 1] - j) / (bin[i + 1] - bin[i])
 
-    mel_spectrum = np.dot(mel_filter_bank, spectrum.T)
+    return filters
 
-    log_mel_spectrum = np.log(mel_spectrum + 1e-6)
 
-    mfccs = dct(log_mel_spectrum, type=2, axis=0, norm='ortho')[:n_mfcc]
+def calculate_mfcc(sound, n_mfcc=13, n_fft=2048, hop_length=512, n_mels=40):
+    """
+        Calculation of Mel-frequency cepstral coefficients (MFCC).
 
-    return mfccs.T
+        Parameters:
+        sound : Sound
+            Sound object containing the audio data.
+        n_mfcc : float
+            Number of MFCCs that will be returned.
+        n_fft : float
+            Length of the FFT window.
+        hop_length : float
+            Number of samples between frames.
+        n_mels : float
+            Number of Mel bands.
+
+        Returns:
+        mfcc : np.array
+            Sound pitch (Mel).
+    """
+
+    signal = sound.get_data()
+    sample_rate = sound.get_rate()
+
+    _, _, Zxx = stft(signal, fs=sample_rate, window='hann', nperseg=n_fft, noverlap=n_fft - hop_length)
+    spectrogram = np.abs(Zxx) ** 2
+
+    mel_filters = get_mel_filters(sample_rate, n_fft, n_mels)
+
+    mel_spectrogram = np.dot(mel_filters, spectrogram)
+
+    log_mel_spectrogram = np.log(mel_spectrogram + 1e-6)
+
+    mfcc = fft.dct(log_mel_spectrogram, axis=0, type=2, norm='ortho')[:n_mfcc]
+
+    return mfcc
