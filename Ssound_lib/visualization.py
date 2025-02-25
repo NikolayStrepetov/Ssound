@@ -53,9 +53,14 @@ def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None
         plt.show()
 
 
-def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, output_file: str = None, legend: bool = True) -> None:
+def plot_spectrogram(sound: Sound,
+                     channel: int = 1,
+                     return_parameters: bool = True,
+                     save_plot: bool = False,
+                     output_file: str = None,
+                     legend: bool = True):
     """
-    Plot a spectrogram of an audio file.
+    Return a spectrogram parameters or plot spectrogram of an audiofile.
 
     Parameters:
     sound : Sound
@@ -70,7 +75,7 @@ def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, ou
         Whether to display a legend.
 
     Returns:
-    None
+    Tuple of frequencies_arr, times_arr, sxx
     """
 
     if not isinstance(sound, Sound):
@@ -92,7 +97,10 @@ def plot_spectrogram(sound: Sound, channel: int = 1, save_plot: bool = False, ou
     else:
         frequencies_arr, times_arr, sxx = signal.spectrogram(data[:, channel - 1], rate)
 
-    sxx = np.where(sxx == 0, 1e-12, sxx)
+    sxx = np.log(sxx + 1e-9)
+
+    if return_parameters:
+        return times_arr, frequencies_arr, sxx
 
     plt.figure(figsize=(10, 5))
     plt.pcolormesh(times_arr, frequencies_arr, 10 * np.log10(sxx))
