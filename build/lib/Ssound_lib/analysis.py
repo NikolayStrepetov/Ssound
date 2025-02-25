@@ -145,7 +145,6 @@ def _calculate_channel_si_sdr(clean_data: np.array, estimated_data: np.array) ->
 
 
 def get_mel_filters(sample_rate, n_fft, n_mels=40):
-    """Создание Mel-фильтров."""
     """
         Creating of Mel-filters.
 
