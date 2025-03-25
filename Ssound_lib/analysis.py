@@ -207,6 +207,9 @@ def calculate_mfcc(sound, n_mfcc=13, n_fft=2048, hop_length=512, n_mels=40):
     signal = sound.get_data()
     sample_rate = sound.get_rate()
 
+    if len(signal.shape) > 1:
+        signal = signal.mean(axis=1)
+
     _, _, Zxx = stft(signal, fs=sample_rate, window='hann', nperseg=n_fft, noverlap=n_fft - hop_length)
     spectrogram = np.abs(Zxx) ** 2
 
