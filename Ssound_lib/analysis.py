@@ -3,6 +3,9 @@ from .sound import Sound
 from .utils import audio_length_alignment, hz_to_mel, mel_to_hz
 from scipy.signal import stft
 import scipy.fftpack as fft
+from scipy import signal
+from fastdtw import fastdtw
+from scipy.spatial.distance import cosine, euclidean
 
 
 def calculate_snr(clean_sound: Sound, noisy_sound: Sound) -> float:
@@ -222,3 +225,60 @@ def calculate_mfcc(sound, n_mfcc=13, n_fft=2048, hop_length=512, n_mels=40):
     mfcc = fft.dct(log_mel_spectrogram, axis=0, type=2, norm='ortho')[:n_mfcc]
 
     return mfcc
+
+
+def compare_spectrograms(sound1, sound2, channel=1, eps=1e-10):
+    """
+        Compare two audio signals using their spectrograms with multiple similarity metrics.
+
+        Parameters:
+        sound1 : Sound
+            First Sound object to compare.
+        sound2 : Sound
+            Second Sound object to compare.
+        channel : int, optional
+            Channel to use for comparison if audio is multichannel (default is 1).
+        eps : float, optional
+            Small constant to avoid division by zero in normalization (default is 1e-10).
+
+        Returns:
+        dict
+            Dictionary containing three similarity metrics:
+            - "MSE": Mean Squared Error between normalized spectrograms
+            - "Cosine_similarity": Cosine similarity between spectrogram vectors (1 is identical)
+            - "DTW": Normalized Dynamic Time Warping distance between spectrograms
+
+        Notes:
+        - Both audio signals are automatically aligned in time before comparison
+        - Spectrograms are normalized (zero mean, unit variance) before comparison
+        - For stereo/multichannel audio, only the specified channel is compared
+    """
+
+    rate1 = sound1.get_rate()
+    data1 = sound1.get_data()
+    rate2 = sound2.get_rate()
+    data2 = sound2.get_data()
+
+    data1, data2 = audio_length_alignment(data1, data2)
+
+    if len(data1.shape) == 1:
+        times1, freqs1, sxx1 = signal.spectrogram(data1, rate1)
+    else:
+        times1, freqs1, sxx1 = signal.spectrogram(data1[:, channel - 1], rate1)
+
+    if len(data2.shape) == 1:
+        times2, freqs2, sxx2 = signal.spectrogram(data2, rate2)
+    else:
+        times2, freqs2, sxx2 = signal.spectrogram(data2[:, channel - 1], rate2)
+
+    sxx1 = (sxx1 - sxx1.mean()) / (sxx1.std() + eps)
+    sxx2 = (sxx2 - sxx2.mean()) / (sxx2.std() + eps)
+
+    mse = np.mean((sxx1 - sxx2) ** 2)
+
+    cosine_sim = 1 - cosine(sxx1.flatten(), sxx2.flatten())
+
+    distance, _ = fastdtw(sxx1, sxx2, dist=euclidean)
+    normalized_dtw = distance / (len(sxx1) + len(sxx2))
+
+    return {"MSE": mse, "Cosine_similarity": cosine_sim, "DTW": normalized_dtw}
