@@ -55,7 +55,7 @@ def plot_waveform(sound: Sound, save_plot: bool = False, output_file: str = None
 
 def plot_spectrogram(sound: Sound,
                      channel: int = 1,
-                     return_parameters: bool = True,
+                     return_parameters: bool = False,
                      save_plot: bool = False,
                      output_file: str = None,
                      legend: bool = True):

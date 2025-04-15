@@ -24,8 +24,21 @@ def change_volume(sound: Sound, gain: float) -> Sound:
     if gain < 0:
         raise ValueError("Expected 'gain' must be positive or 0")
 
-    amplified_data = sound.get_data() * gain
-    amplified_data = np.clip(amplified_data, -32768, 32767).astype(np.int16)
+    data = sound.get_data().astype(np.float32)
+
+    if gain > 0:
+        amplified_data = data * gain
+
+        max_val = np.max(np.abs(amplified_data))
+        if max_val > 32767:
+            compression_factor = (32767 / max_val) ** 0.5
+            amplified_data = np.sign(amplified_data) * (
+                        32767 * (np.abs(amplified_data) / max_val) ** compression_factor)
+
+        amplified_data = np.clip(amplified_data, -32768, 32767).astype(np.int16)
+    else:
+        amplified_data = np.zeros_like(data, dtype=np.int16)
+
     return Sound(sound.get_rate(), amplified_data)
 
 

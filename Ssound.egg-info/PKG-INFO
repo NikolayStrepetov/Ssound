@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: Ssound
-Version: 0.2.5
+Version: 1.0.0
 Summary: A library for audio processing and analysis
 Home-page: https://github.com/NikolayStrepetov/Ssound.git
 Author: Nick
@@ -11,6 +11,7 @@ Requires-Python: >=3.6
 Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: matplotlib
+Requires-Dist: fastdtw
 Dynamic: author
 Dynamic: classifier
 Dynamic: home-page
