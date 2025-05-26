@@ -97,7 +97,7 @@ def plot_spectrogram(sound: Sound,
     else:
         frequencies_arr, times_arr, sxx = signal.spectrogram(data[:, channel - 1], rate)
 
-    sxx = np.log(sxx + 1e-9)
+    sxx = np.where(sxx == 0, 1e-9, sxx)
 
     if return_parameters:
         return times_arr, frequencies_arr, sxx
